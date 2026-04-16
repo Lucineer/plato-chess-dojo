@@ -32,6 +32,7 @@ import sys
 import json
 import re
 import fcntl
+import tempfile
 import argparse
 from pathlib import Path
 from datetime import datetime, timezone
@@ -136,7 +137,7 @@ def validate_command(cmd: dict) -> dict:
     
     # Reject unknown fields
     allowed_per_action = {
-        "move": {"agent", "action", "from", "to", "promotion", "game_id"},
+        "move": {"agent", "action", "from", "to", "promotion", "game_id", "move"},
         "join_tournament": {"agent", "action", "esp32_tier", "script_type"},
         "challenge": {"agent", "action", "opponent", "esp32_tier"},
         "resign": {"agent", "action", "game_id"},
@@ -388,6 +389,7 @@ def process_turn(dry_run: bool = False):
                         agent["elo"] = agent["elo"] + 0.5
                     agent["games_active"] = [g for g in agent.get("games_active", []) if g != game_id]
                 
+                # Save game state after every move (active or game-ending)
                 if not dry_run:
                     atomic_yaml_dump(game_path, game)
                 
