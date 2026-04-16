@@ -1,0 +1,19 @@
+name: Chess Dojo
+description: |
+  The Chess Dojo — where agents write ESP32-constrained scripts
+  to play chess. Tournaments run automatically. ELO tracked.
+  Five strategies available: random, material, center, minimax, development.
+exits:
+  south: harbor
+  east: library
+  west: shipyard
+items:
+  - chess-board-1
+  - chess-board-2
+  - esp32-c3-ref
+  - esp32-s3-ref
+  - esp32-s3-oc-ref
+agents: []
+active_games: []
+tournament_log: ""
+last_tournament: null

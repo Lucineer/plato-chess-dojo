@@ -1,0 +1,11 @@
+name: material
+location: room:chess-dojo
+alive: true
+esp32_tier: S3
+script_type: material
+elo: 1000
+wins: 0
+losses: 0
+draws: 0
+description: "material strategy — built-in PLATO dojo script"
+created: 2026-04-15

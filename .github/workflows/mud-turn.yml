@@ -1,0 +1,57 @@
+name: Chess Dojo — MUD Turn Processor
+run-name: Chess Turn ${{ github.run_number }}
+on:
+  push:
+    paths:
+      - 'world/commands/**'
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to run'
+        required: false
+        default: 'process'
+        type: choice
+        options:
+          - process
+          - tournament
+          - standings
+
+permissions:
+  contents: write
+
+jobs:
+  process_turn:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install chess engine
+        run: |
+          pip install pyyaml
+          # Copy standalone engine if bridges version needs deps
+          cp ct_chess.py bridges/chess_standalone.py 2>/dev/null || true
+
+      - name: Process agent commands
+        run: python bridges/chess_engine.py
+        env:
+          ACTION: ${{ github.event.inputs.action || 'process' }}
+
+      - name: Commit world state
+        run: |
+          git config user.name "Chess Dojo Engine"
+          git config user.email "dojo@plato-os.dev"
+          git add world/
+          git commit -m "Turn ${{ github.run_number }} processed" || echo "No state changes"
+          git push
+
+      - name: Archive turn log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: turn-${{ github.run_number }}
+          path: world/logs/
+          retention-days: 30
