@@ -1,0 +1,12 @@
+name: ""
+elo: 1000
+room: chess-dojo
+alive: true
+wins: 0
+losses: 0
+draws: 0
+games_active: []
+esp32_tier: S3
+script_type: random
+created: null
+last_active: null

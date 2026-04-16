@@ -1,57 +1,71 @@
-name: Chess Dojo — MUD Turn Processor
-run-name: Chess Turn ${{ github.run_number }}
+name: Chess Dojo — Turn Processor
+run-name: "Chess Turn ${{ github.run_number }}"
+
 on:
   push:
-    paths:
-      - 'world/commands/**'
+    paths: ['world/commands/**']
+    branches: [main, master]
   workflow_dispatch:
     inputs:
       action:
-        description: 'Action to run'
+        description: 'Action'
         required: false
         default: 'process'
         type: choice
-        options:
-          - process
-          - tournament
-          - standings
+        options: [process, validate, standings]
 
 permissions:
   contents: write
 
+concurrency:
+  group: chess-dojo-turn
+  cancel-in-progress: false
+
 jobs:
-  process_turn:
+  validate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
+        with: {python-version: '3.12'}
+      - run: pip install pyyaml python-chess
+      - run: python bridges/chess_engine.py --validate-only
 
-      - name: Install chess engine
+  process_turn:
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: pip install pyyaml python-chess
+      - name: Process turns
         run: |
-          pip install pyyaml
-          # Copy standalone engine if bridges version needs deps
-          cp ct_chess.py bridges/chess_standalone.py 2>/dev/null || true
-
-      - name: Process agent commands
-        run: python bridges/chess_engine.py
-        env:
-          ACTION: ${{ github.event.inputs.action || 'process' }}
-
-      - name: Commit world state
+          python bridges/chess_engine.py --world-dir world 2>&1 | tee chess-turn.log
+          echo "EXIT=$?" >> $GITHUB_ENV
+      - name: Commit state
+        if: env.EXIT == '0'
         run: |
-          git config user.name "Chess Dojo Engine"
-          git config user.email "dojo@plato-os.dev"
+          git config user.name "chess-dojo-ci"
+          git config user.email "ci@chess.plato.dev"
           git add world/
-          git commit -m "Turn ${{ github.run_number }} processed" || echo "No state changes"
-          git push
-
-      - name: Archive turn log
+          if git diff --cached --quiet; then
+            echo "No changes"
+          else
+            git commit -m "Turn ${{ github.run_number }}"
+            for i in 1 2 3; do
+              git push && break
+              git pull --rebase || true
+              sleep 5
+            done
+          fi
+      - name: Standings
         if: always()
-        uses: actions/upload-artifact@v4
+        run: python bridges/chess_engine.py --standings --world-dir world
+      - uses: actions/upload-artifact@v4
+        if: always()
         with:
-          name: turn-${{ github.run_number }}
+          name: chess-turn-${{ github.run_number }}
           path: world/logs/
           retention-days: 30
